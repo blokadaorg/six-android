@@ -13,8 +13,13 @@
 package service
 
 import androidx.fragment.app.DialogFragment
+import binding.StageBinding
 import model.BlokadaException
-import ui.home.*
+import ui.home.AdsCounterFragment
+import ui.home.CloudPaymentFragment
+import ui.home.ConnIssuesFragment
+import ui.home.LocationFragment
+import ui.home.OnboardingFragment
 
 enum class Sheet {
     Help, // Help Screen (contact us)
@@ -29,7 +34,10 @@ enum class Sheet {
     ConnIssues // A detail view when tapping the connection issues overlay
 }
 
-class SheetService {
+object SheetService {
+    private val stage by lazy { StageBinding }
+
+    private var sheet: Sheet? = null
 
     fun showSheet(sheet: Sheet) {
         val fragment = when (sheet) {
@@ -41,8 +49,22 @@ class SheetService {
             else -> throw BlokadaException("unsupported sheet")
         }
         onShowFragment(fragment)
+        this.sheet = sheet
+        stage.sheetShown(sheet)
+    }
+
+    fun dismiss() {
+        if (sheet != null) {
+            sheet = null
+            onHideFragment()
+        } else sheetDismissed()
+    }
+
+    fun sheetDismissed() {
+        sheet = null
+        stage.modalDismissed()
     }
 
     var onShowFragment: (DialogFragment) -> Unit = { }
-
+    var onHideFragment: () -> Unit = { }
 }

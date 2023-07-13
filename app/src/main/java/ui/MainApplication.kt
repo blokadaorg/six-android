@@ -23,6 +23,28 @@ import androidx.datastore.preferences.preferencesDataStoreFile
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
+import binding.AccountBinding
+import binding.AccountPaymentBinding
+import binding.AppBinding
+import binding.CommandBinding
+import binding.CustomBinding
+import binding.DeckBinding
+import binding.DeviceBinding
+import binding.EnvBinding
+import binding.HttpBinding
+import binding.JournalBinding
+import binding.NotificationBinding
+import binding.PermBinding
+import binding.PersistenceBinding
+import binding.PlusBinding
+import binding.PlusGatewayBinding
+import binding.PlusKeypairBinding
+import binding.PlusLeaseBinding
+import binding.PlusVpnBinding
+import binding.RateBinding
+import binding.StageBinding
+import binding.StatsBinding
+import binding.TracerBinding
 import com.akexorcist.localizationactivity.ui.LocalizationApplication
 import com.wireguard.android.backend.Backend
 import com.wireguard.android.backend.GoBackend
@@ -33,23 +55,39 @@ import com.wireguard.android.util.ToolsInstaller
 import com.wireguard.android.util.UserKnobs
 import com.wireguard.android.util.applicationScope
 import engine.EngineService
-import kotlinx.coroutines.*
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.launch
 import model.AppState
 import model.BlockaConfig
 import model.BlockaRepoConfig
 import model.BlockaRepoPayload
 import repository.Repos
-import service.*
+import service.AppUninstallService
+import service.BlocklistService
+import service.ConnectivityService
+import service.ContextService
+import service.DozeService
+import service.FlutterService
+import service.LogService
+import service.MonitorService
+import service.PersistenceService
+import service.TranslationService
+import service.UpdateService
+import ui.advanced.decks.PacksViewModel
+import ui.journal.StatsViewModel
 import ui.utils.cause
 import utils.Logger
 import java.lang.ref.WeakReference
-import java.util.*
+import java.util.Locale
 
 class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
 
-    private lateinit var accountVM: AccountViewModel
     private lateinit var tunnelVM: TunnelViewModel
     private lateinit var settingsVM: SettingsViewModel
     private lateinit var blockaRepoVM: BlockaRepoViewModel
@@ -57,7 +95,30 @@ class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
     private lateinit var adsCounterVM: AdsCounterViewModel
     private lateinit var networksVM: NetworksViewModel
     private lateinit var packsVM: PacksViewModel
-    private lateinit var activationVM: ActivationViewModel
+
+    private val flutter by lazy { FlutterService }
+    private lateinit var commands: CommandBinding
+    private lateinit var stage: StageBinding
+    private lateinit var env: EnvBinding
+    private lateinit var persistence: PersistenceBinding
+    private lateinit var http: HttpBinding
+    private lateinit var tracer: TracerBinding
+    private lateinit var app: AppBinding
+    private lateinit var notification: NotificationBinding
+    private lateinit var account: AccountBinding
+    private lateinit var accountPayment: AccountPaymentBinding
+    private lateinit var device: DeviceBinding
+    private lateinit var journal: JournalBinding
+    private lateinit var custom: CustomBinding
+    private lateinit var deck: DeckBinding
+    private lateinit var perm: PermBinding
+    private lateinit var plus: PlusBinding
+    private lateinit var plusKeypair: PlusKeypairBinding
+    private lateinit var plusGateway: PlusGatewayBinding
+    private lateinit var plusLease: PlusLeaseBinding
+    private lateinit var plusVpn: PlusVpnBinding
+    private lateinit var rate: RateBinding
+    private lateinit var stats: StatsBinding
 
     private val appRepo by lazy { Repos.app }
 
@@ -68,12 +129,42 @@ class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
     override fun onCreate() {
         super.onCreate()
         ContextService.setApp(this)
+        setupCommonModule()
+
         LogService.setup()
         DozeService.setup(this)
         wgOnCreate()
         setupEvents()
         MonitorService.setup(settingsVM.getUseForegroundService())
         Repos.start()
+    }
+
+    private fun setupCommonModule() {
+        flutter.setup()
+
+        // Need references for the bindings to get initialized
+        commands = CommandBinding
+        stage = StageBinding
+        app = AppBinding
+        env = EnvBinding
+        persistence = PersistenceBinding
+        http = HttpBinding
+        notification = NotificationBinding
+        tracer = TracerBinding
+        account = AccountBinding
+        accountPayment = AccountPaymentBinding
+        device = DeviceBinding
+        journal = JournalBinding
+        custom = CustomBinding
+        deck = DeckBinding
+        perm = PermBinding
+        plus = PlusBinding
+        plusKeypair = PlusKeypairBinding
+        plusGateway = PlusGatewayBinding
+        plusLease = PlusLeaseBinding
+        plusVpn = PlusVpnBinding
+        rate = RateBinding
+        stats = StatsBinding
     }
 
     private fun setupEvents() {
@@ -83,18 +174,16 @@ class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
             user = PersistenceService.load(BlockaConfig::class) // TODO: not nice
         )
 
-        accountVM = ViewModelProvider(this).get(AccountViewModel::class.java)
         tunnelVM = ViewModelProvider(this).get(TunnelViewModel::class.java)
         settingsVM = ViewModelProvider(this).get(SettingsViewModel::class.java)
         blockaRepoVM = ViewModelProvider(this).get(BlockaRepoViewModel::class.java)
         statsVM = ViewModelProvider(this).get(StatsViewModel::class.java)
         adsCounterVM = ViewModelProvider(this).get(AdsCounterViewModel::class.java)
         packsVM = ViewModelProvider(this).get(PacksViewModel::class.java)
-        activationVM = ViewModelProvider(this).get(ActivationViewModel::class.java)
 
-        accountVM.account.observeForever { account ->
-            tunnelVM.checkConfigAfterAccountChanged(account)
-        }
+//        accountVM.account.observeForever { account ->
+//            tunnelVM.checkConfigAfterAccountChanged(account)
+//        }
 
         settingsVM.localConfig.observeForever {
             TranslationService.setLocale(it.locale)
@@ -158,8 +247,6 @@ class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
         GlobalScope.launch { onAppStateWorking_updateMonitorService() }
         GlobalScope.launch { onAppStateActive_maybeUninstallOtherApps() }
         checkOtherAppsInstalled()
-
-        Repos.account.hackyAccount()
     }
 
     private suspend fun onAppStateChanged_updateMonitorService() {

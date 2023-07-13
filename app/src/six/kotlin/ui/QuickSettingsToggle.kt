@@ -14,31 +14,29 @@ package ui
 
 import android.service.quicksettings.Tile
 import android.service.quicksettings.TileService
+import binding.AppBinding
 import kotlinx.coroutines.GlobalScope
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import model.AppState
 import org.blokada.R
-import repository.Repos
 import utils.FlavorSpecific
 import utils.Logger
 
 class QuickSettingsToggle : TileService(), FlavorSpecific {
 
     private val log = Logger("QSTile")
-
-    private val appRepo by lazy { Repos.app }
+    private val app by lazy { AppBinding }
 
     private var tileActive = false
 
     init {
         GlobalScope.launch {
-            appRepo.appStateHot.collect { syncStatus(state = it) }
+            app.appStateHot.collect { syncStatus() }
         }
 
         GlobalScope.launch {
-            appRepo.workingHot.collect { syncStatus(working = it) }
+            app.workingHot.collect { syncStatus() }
         }
     }
 
@@ -69,9 +67,9 @@ class QuickSettingsToggle : TileService(), FlavorSpecific {
         }
     }
 
-    private suspend fun syncStatus(state: AppState? = null, working: Boolean? = null): IsActive? {
-        val state = state ?: appRepo.appStateHot.first()
-        val working = working ?: appRepo.workingHot.first()
+    private suspend fun syncStatus(): IsActive? {
+        val state = app.appStateHot.first()
+        val working = app.workingHot.first()
 
         return when {
             qsTile == null -> null

@@ -12,9 +12,24 @@
 
 package service
 
-import model.*
+import model.AdsCounter
+import model.Allowed
+import model.BlockaAfterUpdate
+import model.BlockaConfig
+import model.BlockaRepoConfig
+import model.BlockaRepoPayload
+import model.BlockaRepoUpdate
+import model.BlokadaException
+import model.BypassedAppIds
+import model.Defaults
+import model.Denied
+import model.DnsWrapper
+import model.LocalConfig
+import model.NetworkSpecificConfigs
+import model.Packs
+import model.StatsPersisted
+import model.SyncableConfig
 import repository.PackMigration
-import ui.ActivationViewModel
 import ui.utils.cause
 import utils.Logger
 import kotlin.reflect.KClass
@@ -56,9 +71,6 @@ object PersistenceService {
                 Allowed::class -> {
                     file.load(key = BlocklistService.USER_ALLOWED) to newline
                 }
-                Account::class -> {
-                    prefs.load(getPrefsKey(type)) to json
-                }
                 AdsCounter::class -> {
                     prefs.load(getPrefsKey(type)) to json
                 }
@@ -92,8 +104,6 @@ object PersistenceService {
         LocalConfig::class -> "localConfig"
         SyncableConfig::class -> "syncableConfig"
         DnsWrapper::class -> "dns"
-        ActivationViewModel.ActivationState::class -> "activationState"
-        Account::class -> "account"
         AdsCounter::class -> "adsCounter"
         BypassedAppIds::class -> "bypassedApps"
         BlockaRepoConfig::class -> "blockaRepoConfig"
@@ -113,8 +123,6 @@ object PersistenceService {
         LocalConfig::class -> Defaults.localConfig() as T
         SyncableConfig::class -> Defaults.syncableConfig() as T
         DnsWrapper::class -> Defaults.dnsWrapper() as T
-        ActivationViewModel.ActivationState::class -> ActivationViewModel.ActivationState.INACTIVE as T
-        Account::class -> throw NoPersistedAccount()
         AdsCounter::class -> Defaults.adsCounter() as T
         BypassedAppIds::class -> Defaults.bypassedAppIds() as T
         BlockaRepoConfig::class -> Defaults.blockaRepoConfig() as T

@@ -12,12 +12,32 @@
 
 package repository
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import binding.AccountBinding
+import binding.DeviceBinding
+import binding.StageBinding
+import binding.getType
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import model.AccountType
 import model.Granted
 import org.blokada.R
-import service.*
+import service.ContextService
+import service.DialogService
+import service.NotificationService
+import service.SystemNavService
+import service.VpnPermissionService
 import ui.utils.AndroidUtils
 import utils.Ignored
 import utils.Logger
@@ -34,16 +54,15 @@ open class PermsRepo {
     val vpnProfilePermsHot = writeVpnProfilePerms.filterNotNull().distinctUntilChanged()
     val notificationPermsHot = writeNotificationPerms.filterNotNull().distinctUntilChanged()
 
-    private val enteredForegroundHot = Repos.stage.enteredForegroundHot
-    private val accountTypeHot = Repos.account.accountTypeHot
-
     private val context = ContextService
     private val dialog = DialogService
     private val systemNav = SystemNavService
     private val vpnPerms = VpnPermissionService
     private val notifications = NotificationService
 
-    private val cloudRepo = Repos.cloud
+    private val stage by lazy { StageBinding }
+    private val device by lazy { DeviceBinding }
+    private val account by lazy { AccountBinding }
 
     private var previousAccountType: AccountType? = null
 
@@ -61,8 +80,8 @@ open class PermsRepo {
 
     private fun onForeground_recheckPerms() {
         GlobalScope.launch {
-            enteredForegroundHot
-            .combine(cloudRepo.dnsProfileActivatedHot) { _, activated -> activated }
+            stage.enteredForegroundHot
+            .combine(device.dnsProfileActivatedHot) { _, activated -> activated }
             .collect { activated ->
                 Logger.v("Perms", "DNS profile: $activated, notifications: ${notifications.hasPermissions()}")
                 writeDnsProfilePerms.value = activated
@@ -74,7 +93,7 @@ open class PermsRepo {
 
     private fun onDnsProfileActivated_update() {
         GlobalScope.launch {
-            cloudRepo.dnsProfileActivatedHot
+            device.dnsProfileActivatedHot
             .collect { activated ->
                 Logger.v("Perms", "DNS profile: $activated")
                 writeDnsProfilePerms.value = activated
@@ -84,7 +103,7 @@ open class PermsRepo {
 
     private fun onDnsString_latest() {
         GlobalScope.launch {
-            cloudRepo.expectedDnsStringHot.collect {
+            device.expectedDnsStringHot.collect {
                 writeDnsString.value = it
             }
         }
@@ -123,7 +142,7 @@ open class PermsRepo {
     }
 
     suspend fun maybeAskVpnProfilePerms() {
-        val type = accountTypeHot.first()
+        val type = account.account.value.getType()
         val granted = vpnProfilePermsHot.first()
         if (type == AccountType.Plus && !granted) {
             suspendCancellableCoroutine<Granted> { cont ->
@@ -216,7 +235,8 @@ open class PermsRepo {
     // This will also trigger if StoreKit sends us transaction (on start) that upgrades.
     private fun onAccountTypeUpgraded_showActivatedSheet() {
         GlobalScope.launch {
-            accountTypeHot
+            account.account
+            .map { it.getType() }
             .filter { now ->
                 if (previousAccountType == null) {
                     previousAccountType = now

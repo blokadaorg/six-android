@@ -14,10 +14,25 @@ package service
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.adapters.Rfc3339DateJsonAdapter
-import model.*
+import model.AdsCounter
+import model.Allowed
+import model.BlockaAfterUpdate
+import model.BlockaConfig
+import model.BlockaRepo
+import model.BlockaRepoConfig
+import model.BlockaRepoPayload
+import model.BlockaRepoUpdate
+import model.BlokadaException
+import model.BypassedAppIds
+import model.Denied
+import model.DnsWrapper
+import model.LocalConfig
+import model.NetworkSpecificConfigs
+import model.Packs
+import model.StatsPersisted
+import model.SyncableConfig
 import repository.TranslationPack
-import ui.ActivationViewModel
-import java.util.*
+import java.util.Date
 import kotlin.reflect.KClass
 
 interface SerializationService {
@@ -55,14 +70,6 @@ object JsonSerializationService : SerializationService {
             }
             is DnsWrapper -> {
                 val adapter = moshi.adapter(DnsWrapper::class.java)
-                return adapter.toJson(obj)
-            }
-            is ActivationViewModel.ActivationState -> {
-                val adapter = moshi.adapter(ActivationViewModel.ActivationState::class.java)
-                return adapter.toJson(obj)
-            }
-            is Account -> {
-                val adapter = moshi.adapter(Account::class.java)
                 return adapter.toJson(obj)
             }
             is AdsCounter -> {
@@ -130,14 +137,6 @@ object JsonSerializationService : SerializationService {
             }
             DnsWrapper::class -> {
                 val adapter = moshi.adapter(DnsWrapper::class.java)
-                return adapter.fromJson(serialized) as T
-            }
-            ActivationViewModel.ActivationState::class -> {
-                val adapter = moshi.adapter(ActivationViewModel.ActivationState::class.java)
-                return adapter.fromJson(serialized) as T
-            }
-            Account::class -> {
-                val adapter = moshi.adapter(Account::class.java)
                 return adapter.fromJson(serialized) as T
             }
             AdsCounter::class -> {

@@ -274,6 +274,23 @@ class ExpiredNotification: NotificationPrototype(4, NotificationChannels.BLOCKA,
     }
 )
 
+class OnboardingNotification: NotificationPrototype(5, NotificationChannels.BLOCKA,
+    create = { ctx ->
+        val b = NotificationCompat.Builder(ctx)
+        b.setContentTitle(ctx.getString(R.string.activated_header))
+        b.setContentText(ctx.getString(R.string.dnsprofile_notification_subtitle))
+        b.setStyle(NotificationCompat.BigTextStyle().bigText(ctx.getString(R.string.dnsprofile_notification_body)))
+        //b.setSmallIcon(R.drawable.ic_stat_blokada)
+        b.setSmallIcon(R.drawable.ic_stat_blokada)
+        b.setPriority(NotificationCompat.PRIORITY_MAX)
+        b.setVibrate(LongArray(0))
+
+        val intentActivity = Intent(ctx, MainActivity::class.java)
+        val piActivity = ctx.getPendingIntentForActivity(intentActivity, 0)
+        b.setContentIntent(piActivity)
+    }
+)
+
 //class AnnouncementNotification(announcement: Announcement): BlokadaNotification(6,
 //    NotificationChannels.ANNOUNCEMENT, autoCancel = true,
 //    create = { ctx ->

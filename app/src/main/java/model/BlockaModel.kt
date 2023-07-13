@@ -13,7 +13,7 @@
 package model
 
 import com.squareup.moshi.JsonClass
-import java.util.*
+import java.util.Date
 
 typealias AccountId = String
 typealias GatewayId = String
@@ -23,9 +23,6 @@ typealias ActiveUntil = Date
 typealias DeviceId = String
 
 @JsonClass(generateAdapter = true)
-data class AccountWrapper(val account: Account)
-
-@JsonClass(generateAdapter = true)
 data class LeaseWrapper(val lease: Lease)
 
 @JsonClass(generateAdapter = true)
@@ -33,23 +30,6 @@ data class Gateways(val gateways: List<Gateway>)
 
 @JsonClass(generateAdapter = true)
 data class Leases(val leases: List<Lease>)
-
-@JsonClass(generateAdapter = true)
-data class Account(
-    val id: AccountId,
-    val active_until: ActiveUntil = Date(0),
-    val active: Boolean?,
-    val type: String?,
-    val payment_source: String?
-) {
-    fun isActive() = active ?: false
-    fun getType() = type.toAccountType()
-    fun getSource() = payment_source
-
-    override fun toString(): String {
-        return "Account(activeUntil=$active_until, type=$type)"
-    }
-}
 
 @JsonClass(generateAdapter = true)
 data class Gateway(

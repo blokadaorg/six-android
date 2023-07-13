@@ -20,7 +20,6 @@ object Repos {
     val cloud by lazy { CloudRepo() }
     val perms by lazy { DebugPermsRepo() }
     val app by lazy { DebugAppRepo() }
-    val account by lazy { AccountRepo() }
     val payment by lazy { PaymentRepo() }
     val activity by lazy { ActivityRepo() }
     val stats by lazy { StatsRepo() }
@@ -38,7 +37,6 @@ object Repos {
         cloud.start()
         perms.start()
         app.start()
-        account.start()
         payment.start()
         activity.start()
         stats.start()

@@ -17,20 +17,19 @@ import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
 import androidx.fragment.app.Fragment
-import androidx.lifecycle.Observer
 import androidx.lifecycle.ViewModelProvider
 import androidx.recyclerview.widget.LinearLayoutManager
 import androidx.recyclerview.widget.RecyclerView
+import binding.AccountBinding
 import model.Lease
 import org.blokada.R
-import ui.AccountViewModel
 import ui.TunnelViewModel
 import ui.app
 
 class LeasesFragment : Fragment() {
+    private val account by lazy { AccountBinding }
 
     private lateinit var vm: LeasesViewModel
-    private lateinit var accountVM: AccountViewModel
     private lateinit var tunnelVM: TunnelViewModel
 
     override fun onCreateView(
@@ -40,7 +39,6 @@ class LeasesFragment : Fragment() {
     ): View? {
         activity?.let {
             vm = ViewModelProvider(it).get(LeasesViewModel::class.java)
-            accountVM = ViewModelProvider(it.app()).get(AccountViewModel::class.java)
             tunnelVM = ViewModelProvider(it.app()).get(TunnelViewModel::class.java)
         }
 
@@ -49,7 +47,7 @@ class LeasesFragment : Fragment() {
         val recycler: RecyclerView = root.findViewById(R.id.recyclerview)
         recycler.layoutManager = LinearLayoutManager(context)
 
-        accountVM.account.observe(viewLifecycleOwner, Observer { account ->
+        account.live.observe(viewLifecycleOwner) { account ->
             val adapter = LeasesAdapter(interaction = object : LeasesAdapter.Interaction {
                 override fun onDelete(lease: Lease) {
                     vm.delete(account.id, lease)
@@ -61,12 +59,12 @@ class LeasesFragment : Fragment() {
             })
             recycler.adapter = adapter
 
-            vm.leases.observe(viewLifecycleOwner, Observer {
+            vm.leases.observe(viewLifecycleOwner) {
                 adapter.swapData(it)
-            })
+            }
 
             vm.fetch(account.id)
-        })
+        }
 
         return root
     }

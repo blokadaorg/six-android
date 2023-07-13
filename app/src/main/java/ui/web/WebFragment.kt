@@ -15,7 +15,12 @@ package ui.web
 import android.content.ComponentName
 import android.net.Uri
 import android.os.Bundle
-import android.view.*
+import android.view.LayoutInflater
+import android.view.Menu
+import android.view.MenuInflater
+import android.view.MenuItem
+import android.view.View
+import android.view.ViewGroup
 import android.widget.TextView
 import androidx.browser.customtabs.CustomTabsClient
 import androidx.browser.customtabs.CustomTabsIntent
@@ -28,13 +33,15 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import org.blokada.R
 import service.AlertDialogService
-import ui.*
+import ui.ActivationViewModel
+import ui.BottomSheetFragment
+import ui.SettingsViewModel
+import ui.app
 import ui.utils.openInBrowser
 import utils.Links
 
 class WebFragment : BottomSheetFragment() {
 
-    private lateinit var vm: AccountViewModel
     private lateinit var activationVM: ActivationViewModel
     private lateinit var settingsVM: SettingsViewModel
 
@@ -56,7 +63,6 @@ class WebFragment : BottomSheetFragment() {
         savedInstanceState: Bundle?
     ): View? {
         activity?.let {
-            vm = ViewModelProvider(it.app()).get(AccountViewModel::class.java)
             settingsVM = ViewModelProvider(it.app()).get(SettingsViewModel::class.java)
             activationVM = ViewModelProvider(it.app()).get(ActivationViewModel::class.java)
         }
