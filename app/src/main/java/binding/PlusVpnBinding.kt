@@ -19,7 +19,6 @@ import service.FlutterService
 
 object PlusVpnBinding: PlusVpnOps {
     private val flutter by lazy { FlutterService }
-    private val command by lazy { CommandBinding }
     private val engine by lazy { EngineService }
 
     init {

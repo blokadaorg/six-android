@@ -12,39 +12,17 @@
 
 package binding
 
+import channel.command.CommandName
 import channel.deck.Deck
 import channel.deck.DeckOps
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
-import model.Blocklist
-import model.MappedBlocklist
-import model.Pack
+import kotlinx.coroutines.flow.MutableStateFlow
 import service.FlutterService
 import ui.advanced.decks.PackDataSource
-import ui.advanced.decks.convertBlocklists
 
 object DeckBinding: DeckOps {
+    val decks = MutableStateFlow<List<Deck>>(emptyList())
+
     private val dataSource = PackDataSource
-
-    private val writeBlocklists = MutableSharedFlow<List<Blocklist>?>(replay = 1)
-    private val writePacks = MutableSharedFlow<List<Pack>?>(replay = 1)
-
-    // Blocklists is server side representation of all known lists.
-    private val blocklistsHot = writeBlocklists.filterNotNull()
-
-    // Intermediate representation, internal to this class.
-    private val mappedBlocklistsHot = blocklistsHot.map { b ->
-        convertBlocklists(b.filter { !it.is_allowlist })
-    }
-
-    // Used internally to access the map synchronously
-    private var mappedBlocklistsInternal = emptyList<MappedBlocklist>()
-        @Synchronized set
-        @Synchronized get
-
-    // Packs is app's representation. One pack may have multiple configs.
-    val packsHot = writePacks.filterNotNull()
 
     private val flutter by lazy { FlutterService }
     private val command by lazy { CommandBinding }
@@ -53,7 +31,26 @@ object DeckBinding: DeckOps {
         DeckOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
     }
 
-    override fun doDecksChanged(decks: List<Deck>, callback: (Result<Unit>) -> Unit) {
+    fun getDeckIdForList(listId: String): String? {
+        return decks.value.firstOrNull {
+            it.items.keys.contains(listId)
+        }?.deckId
     }
 
+    fun setDeckEnabled(deckId: String, enabled: Boolean) {
+        if (enabled) {
+            command.execute(CommandName.ENABLEDECK, deckId)
+        } else {
+            command.execute(CommandName.DISABLEDECK, deckId)
+        }
+    }
+
+    fun toggleListEnabledForTag(deckId: String, tag: String) {
+        command.execute(CommandName.TOGGLELISTBYTAG, deckId, tag)
+    }
+
+    override fun doDecksChanged(decks: List<Deck>, callback: (Result<Unit>) -> Unit) {
+        this.decks.value = decks
+        callback(Result.success(Unit))
+    }
 }

@@ -14,20 +14,17 @@ package repository
 
 import binding.AccountBinding
 import binding.DeviceBinding
-import binding.StageBinding
+import binding.PermBinding
 import binding.getType
 import kotlinx.coroutines.CancellableContinuation
 import kotlinx.coroutines.GlobalScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
-import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import model.AccountType
@@ -35,78 +32,33 @@ import model.Granted
 import org.blokada.R
 import service.ContextService
 import service.DialogService
-import service.NotificationService
 import service.SystemNavService
 import service.VpnPermissionService
 import ui.utils.AndroidUtils
 import utils.Ignored
-import utils.Logger
 
 open class PermsRepo {
 
-    private val writeDnsProfilePerms = MutableStateFlow<Granted?>(null)
-    private val writeVpnProfilePerms = MutableStateFlow<Granted?>(null)
     private val writeNotificationPerms = MutableStateFlow<Granted?>(null)
 
-    private val writeDnsString = MutableStateFlow<String?>(null)
-
-    val dnsProfilePermsHot = writeDnsProfilePerms.filterNotNull().distinctUntilChanged()
-    val vpnProfilePermsHot = writeVpnProfilePerms.filterNotNull().distinctUntilChanged()
     val notificationPermsHot = writeNotificationPerms.filterNotNull().distinctUntilChanged()
 
-    private val context = ContextService
-    private val dialog = DialogService
-    private val systemNav = SystemNavService
-    private val vpnPerms = VpnPermissionService
-    private val notifications = NotificationService
-
-    private val stage by lazy { StageBinding }
+    private val context by lazy { ContextService }
+    private val perm by lazy { PermBinding }
+    private val vpnPerms by lazy { VpnPermissionService }
     private val device by lazy { DeviceBinding }
     private val account by lazy { AccountBinding }
 
-    private var previousAccountType: AccountType? = null
+    private val dialog = DialogService
+    private val systemNav = SystemNavService
+
 
     private var ongoingVpnPerm: CancellableContinuation<Granted>? = null
         @Synchronized set
         @Synchronized get
 
     open fun start() {
-        onForeground_recheckPerms()
-        onDnsString_latest()
-        onAccountTypeUpgraded_showActivatedSheet()
-        onDnsProfileActivated_update()
         onVpnPermsGranted_Proceed()
-    }
-
-    private fun onForeground_recheckPerms() {
-        GlobalScope.launch {
-            stage.enteredForegroundHot
-            .combine(device.dnsProfileActivatedHot) { _, activated -> activated }
-            .collect { activated ->
-                Logger.v("Perms", "DNS profile: $activated, notifications: ${notifications.hasPermissions()}")
-                writeDnsProfilePerms.value = activated
-                writeVpnProfilePerms.value = vpnPerms.hasPermission()
-                writeNotificationPerms.value = notifications.hasPermissions()
-            }
-        }
-    }
-
-    private fun onDnsProfileActivated_update() {
-        GlobalScope.launch {
-            device.dnsProfileActivatedHot
-            .collect { activated ->
-                Logger.v("Perms", "DNS profile: $activated")
-                writeDnsProfilePerms.value = activated
-            }
-        }
-    }
-
-    private fun onDnsString_latest() {
-        GlobalScope.launch {
-            device.expectedDnsStringHot.collect {
-                writeDnsString.value = it
-            }
-        }
     }
 
     private fun onVpnPermsGranted_Proceed() {
@@ -122,7 +74,7 @@ open class PermsRepo {
     }
 
     suspend fun maybeDisplayDnsProfilePermsDialog() {
-        val granted = dnsProfilePermsHot.first()
+        val granted = perm.dnsProfileActivated.value
         if (!granted) {
             displayDnsProfilePermsInstructions()
             .collect {
@@ -143,7 +95,7 @@ open class PermsRepo {
 
     suspend fun maybeAskVpnProfilePerms() {
         val type = account.account.value.getType()
-        val granted = vpnProfilePermsHot.first()
+        val granted = perm.vpnProfileActivated.value
         if (type == AccountType.Plus && !granted) {
             suspendCancellableCoroutine<Granted> { cont ->
                 ongoingVpnPerm = cont
@@ -207,8 +159,9 @@ open class PermsRepo {
             header = ctx.getString(R.string.dnsprofile_header),
             okText = ctx.getString(R.string.universal_action_copy),
             okAction = {
-                writeDnsString.value?.run {
-                    AndroidUtils.copyToClipboard(this)
+                val expected = device.getExpectedDnsString()
+                if (expected != null) {
+                    AndroidUtils.copyToClipboard(expected)
                 }
             }
         ).flatMapLatest {
@@ -217,56 +170,13 @@ open class PermsRepo {
                 header = ctx.getString(R.string.dnsprofile_header),
                 okText = ctx.getString(R.string.dnsprofile_action_open_settings),
                 okAction = {
-                    writeDnsString.value?.run {
-                        AndroidUtils.copyToClipboard(this)
-                        systemNav.openNetworkSettings()
+                    val expected = device.getExpectedDnsString()
+                    if (expected != null) {
+                        AndroidUtils.copyToClipboard(expected)
                     }
+                    systemNav.openNetworkSettings()
                 }
             )
         }
     }
-
-    // We want user to notice when they upgrade.
-    // From Libre to Cloud or Plus, as well as from Cloud to Plus.
-    // In the former case user will have to grant several permissions.
-    // In the latter case, probably just the VPN perm.
-    // If user is returning, it may be that he already has granted all perms.
-    // But we display the Activated sheet anyway, as a way to show that upgrade went ok.
-    // This will also trigger if StoreKit sends us transaction (on start) that upgrades.
-    private fun onAccountTypeUpgraded_showActivatedSheet() {
-        GlobalScope.launch {
-            account.account
-            .map { it.getType() }
-            .filter { now ->
-                if (previousAccountType == null) {
-                    previousAccountType = now
-                    false
-                } else {
-                    val prev = previousAccountType
-                    previousAccountType = now
-
-                    if (prev == AccountType.Libre && now != AccountType.Libre) {
-                        true
-                    } else prev == AccountType.Cloud && now == AccountType.Plus
-                }
-            }
-            .collect {
-//            .sink(onValue: { _ in self.sheetRepo.showSheet(.Activated)} )
-            }
-        }
-    }
-}
-
-class DebugPermsRepo: PermsRepo() {
-
-    override fun start() {
-        super.start()
-
-        GlobalScope.launch {
-            dnsProfilePermsHot.collect {
-                Logger.e("PermsRepo", "Private DNS perms now: $it")
-            }
-        }
-    }
-
 }

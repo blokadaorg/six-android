@@ -12,25 +12,34 @@
 
 package binding
 
+import channel.command.CommandName
 import channel.pluslease.Lease
 import channel.pluslease.PlusLeaseOps
-import engine.EngineService
+import kotlinx.coroutines.flow.MutableStateFlow
 import service.FlutterService
 
 object PlusLeaseBinding: PlusLeaseOps {
+    val leases = MutableStateFlow<List<Lease>>(emptyList())
+    val currentLease = MutableStateFlow<Lease?>(null)
+
     private val flutter by lazy { FlutterService }
     private val command by lazy { CommandBinding }
-    private val engine by lazy { EngineService }
 
     init {
         PlusLeaseOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
     }
 
+    fun deleteLease(lease: Lease) {
+        command.execute(CommandName.DELETELEASE, lease.publicKey)
+    }
+
     override fun doLeasesChanged(leases: List<Lease>, callback: (Result<Unit>) -> Unit) {
-        TODO("Not yet implemented")
+        this.leases.value = leases
+        callback(Result.success(Unit))
     }
 
     override fun doCurrentLeaseChanged(lease: Lease?, callback: (Result<Unit>) -> Unit) {
-        TODO("Not yet implemented")
+        this.currentLease.value = lease
+        callback(Result.success(Unit))
     }
 }

@@ -182,7 +182,7 @@ class MainActivity : LocalizationActivity(), PreferenceFragmentCompat.OnPreferen
                     R.id.navigation_settings -> Tab.Settings
                     else -> Tab.Home
                 }
-                navRepo.setActiveTab(tab)
+                stage.setActiveTab(tab)
             }
 
             true
@@ -298,7 +298,7 @@ class MainActivity : LocalizationActivity(), PreferenceFragmentCompat.OnPreferen
     private var lastOnResume = 0L
     override fun onResume() {
         super.onResume()
-        stage.onForeground()
+        stage.setForeground()
 
         // Avoid multiple consecutive quick onResume events
         if (lastOnResume + 5 * 1000 > now()) return
@@ -307,14 +307,11 @@ class MainActivity : LocalizationActivity(), PreferenceFragmentCompat.OnPreferen
         Logger.w("MainActivity", "onResume: $this")
         tunnelVM.refreshStatus()
         blockaRepoVM.maybeRefreshRepo()
-        lifecycleScope.launch {
-            statsVM.refresh()
-        }
     }
 
     override fun onPause() {
         Logger.w("MainActivity", "onPause: $this")
-        stage.onBackground()
+        stage.setBackground()
         tunnelVM.goToBackground()
         super.onPause()
     }

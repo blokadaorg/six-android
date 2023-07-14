@@ -15,11 +15,13 @@ package binding
 import channel.pluskeypair.PlusKeypair
 import channel.pluskeypair.PlusKeypairOps
 import engine.EngineService
+import kotlinx.coroutines.flow.MutableStateFlow
 import service.FlutterService
 
 object PlusKeypairBinding: PlusKeypairOps {
+    val keypair = MutableStateFlow<PlusKeypair?>(null)
+
     private val flutter by lazy { FlutterService }
-    private val command by lazy { CommandBinding }
     private val engine by lazy { EngineService }
 
     init {
@@ -28,9 +30,11 @@ object PlusKeypairBinding: PlusKeypairOps {
 
     override fun doGenerateKeypair(callback: (Result<PlusKeypair>) -> Unit) {
         val keypair = engine.newKeypair()
-        callback(Result.success(PlusKeypair(
+        val converted = PlusKeypair(
             publicKey = keypair.second,
             privateKey = keypair.first,
-        )))
+        )
+        this.keypair.value = converted
+        callback(Result.success(converted))
     }
 }

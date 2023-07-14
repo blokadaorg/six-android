@@ -14,30 +14,26 @@ package binding
 
 import channel.journal.JournalEntry
 import channel.journal.JournalFilter
+import channel.journal.JournalFilterType
 import channel.journal.JournalOps
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.filterNotNull
-import kotlinx.coroutines.flow.map
-import model.CustomListEntry
-import model.HistoryEntry
+import kotlinx.coroutines.flow.MutableStateFlow
 import service.FlutterService
+import utils.toBlockaDate
+import java.util.Date
+
+data class UiJournalEntry(
+    //val id: String,
+    val time: Date,
+    val entry: JournalEntry
+)
+
+val defaultFilter = JournalFilter(JournalFilterType.ALL, "", "", true)
 
 object JournalBinding: JournalOps {
-    // Ensure they emit on same value
-    private val writeEntries = MutableSharedFlow<List<HistoryEntry>?>()
-    private val writeCustomList = MutableSharedFlow<List<CustomListEntry>?>(replay = 1)
+    val entries = MutableStateFlow<List<UiJournalEntry>>(emptyList())
+    val filter = MutableStateFlow(defaultFilter)
+    val devices = MutableStateFlow<List<String>>(emptyList())
 
-    val entriesHot = writeEntries.filterNotNull()
-
-    val allowedListHot = writeCustomList.filterNotNull().map { c ->
-        c.filter { it.action == "allow" }.map { it.domain_name }
-    }
-
-    val deniedListHot = writeCustomList.filterNotNull().map { c ->
-        c.filter { it.action == "block" }.map { it.domain_name }
-    }
-
-    val customList = writeCustomList.filterNotNull()
     private val flutter by lazy { FlutterService }
     private val command by lazy { CommandBinding }
 
@@ -46,14 +42,17 @@ object JournalBinding: JournalOps {
     }
 
     override fun doReplaceEntries(entries: List<JournalEntry>, callback: (Result<Unit>) -> Unit) {
+        this.entries.value = entries.map { UiJournalEntry(it.time.toBlockaDate(), it) }
         callback(Result.success(Unit))
     }
 
     override fun doFilterChanged(filter: JournalFilter, callback: (Result<Unit>) -> Unit) {
+        this.filter.value = filter
         callback(Result.success(Unit))
     }
 
     override fun doDevicesChanged(devices: List<String>, callback: (Result<Unit>) -> Unit) {
+        this.devices.value = devices
         callback(Result.success(Unit))
     }
 
@@ -61,6 +60,7 @@ object JournalBinding: JournalOps {
         entries: List<JournalEntry>,
         callback: (Result<Unit>) -> Unit
     ) {
+        // TODO: not implemented
         callback(Result.success(Unit))
     }
 }

@@ -12,10 +12,14 @@
 
 package binding
 
+import channel.command.CommandName
 import channel.plus.PlusOps
+import kotlinx.coroutines.flow.MutableStateFlow
 import service.FlutterService
 
 object PlusBinding: PlusOps {
+    val plusEnabled = MutableStateFlow(false)
+
     private val flutter by lazy { FlutterService }
     private val command by lazy { CommandBinding }
 
@@ -23,7 +27,12 @@ object PlusBinding: PlusOps {
         PlusOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
     }
 
+    fun newPlus(gatewayPublicKey: String) {
+        command.execute(CommandName.NEWPLUS, gatewayPublicKey)
+    }
+
     override fun doPlusEnabledChanged(plusEnabled: Boolean, callback: (Result<Unit>) -> Unit) {
-        TODO("Not yet implemented")
+        this.plusEnabled.value = plusEnabled
+        callback(Result.success(Unit))
     }
 }

@@ -28,5 +28,4 @@ object RateBinding: RateOps {
         onShowRateDialog()
         callback(Result.success(Unit))
     }
-
 }

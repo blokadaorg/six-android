@@ -23,6 +23,8 @@ import androidx.core.content.ContextCompat
 import androidx.recyclerview.widget.DiffUtil
 import androidx.recyclerview.widget.ListAdapter
 import androidx.recyclerview.widget.RecyclerView
+import binding.CustomBinding
+import binding.JournalBinding
 import model.HistoryEntry
 import model.HistoryEntryType
 import net.danlew.android.joda.DateUtils
@@ -35,6 +37,9 @@ class StatsAdapter(
     private val interaction: Interaction? = null
 ) :
     ListAdapter<HistoryEntry, StatsAdapter.ActivityViewHolder>(HistoryEntryDC()) {
+
+    private val journal by lazy { JournalBinding }
+    private val custom by lazy { CustomBinding }
 
     override fun onCreateViewHolder(parent: ViewGroup, viewType: Int) = ActivityViewHolder(
         LayoutInflater.from(parent.context)
@@ -100,7 +105,7 @@ class StatsAdapter(
             }
 
             // Modified state
-            val isOnCustomLists = viewModel.isAllowed(item.name) || viewModel.isDenied(item.name)
+            val isOnCustomLists = custom.isAllowed(item.name) || custom.isDenied(item.name)
             val listApplied = item.type in listOf(HistoryEntryType.blocked_denied, HistoryEntryType.passed_allowed)
             if (isOnCustomLists xor listApplied) {
                 modified.visibility = View.VISIBLE

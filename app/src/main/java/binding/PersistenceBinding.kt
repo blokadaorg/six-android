@@ -18,7 +18,6 @@ import service.SharedPreferencesStorageService
 
 object PersistenceBinding: PersistenceOps {
     private val flutter by lazy { FlutterService }
-    private val command by lazy { CommandBinding }
     private val storage by lazy { SharedPreferencesStorageService }
 
     init {

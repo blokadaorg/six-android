@@ -18,6 +18,7 @@ import channel.stage.StageOps
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.filterNotNull
+import model.Tab
 import org.blokada.R
 import service.AlertDialogService
 import service.FlutterService
@@ -39,12 +40,29 @@ object StageBinding: StageOps {
         StageOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
     }
 
-    fun onForeground() {
+    fun setActiveTab(tab: Tab) {
+        val route = tab.name.lowercase()
+        setRoute(route)
+    }
+
+    fun setRoute(route: String) {
+        command.execute(CommandName.ROUTE, route)
+    }
+
+    fun setForeground() {
         command.execute(CommandName.FOREGROUND)
     }
 
-    fun onBackground() {
+    fun setBackground() {
         command.execute(CommandName.BACKGROUND)
+    }
+
+    fun showModal(modal: StageModal) {
+        command.execute(CommandName.MODALSHOW, modal.name)
+    }
+
+    fun dismiss() {
+        command.execute(CommandName.MODALDISMISS)
     }
 
     fun sheetShown(sheet: Sheet) {

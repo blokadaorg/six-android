@@ -17,7 +17,6 @@ import service.FlutterService
 
 object StatsBinding: StatsOps {
     private val flutter by lazy { FlutterService }
-    private val command by lazy { CommandBinding }
 
     init {
         StatsOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
@@ -26,5 +25,4 @@ object StatsBinding: StatsOps {
     override fun doBlockedCounterChanged(blocked: String, callback: (Result<Unit>) -> Unit) {
         callback(Result.success(Unit))
     }
-
 }

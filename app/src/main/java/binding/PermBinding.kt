@@ -13,18 +13,37 @@
 package binding
 
 import channel.perm.PermOps
+import kotlinx.coroutines.flow.MutableStateFlow
+import repository.Repos
+import service.ConnectivityService
 import service.FlutterService
+import service.VpnPermissionService
 
 object PermBinding: PermOps {
+    val dnsProfileActivated = MutableStateFlow(false)
+    val vpnProfileActivated = MutableStateFlow(false)
+
     private val flutter by lazy { FlutterService }
     private val command by lazy { CommandBinding }
+    private val permsRepo by lazy { Repos.perms }
+    private val vpnPerms by lazy { VpnPermissionService }
+    private val connectivity by lazy { ConnectivityService }
+    private val device by lazy { DeviceBinding }
 
     init {
         PermOps.setUp(flutter.engine.dartExecutor.binaryMessenger, this)
+        onPrivateDnsChanged()
+    }
+
+    private fun onPrivateDnsChanged() {
+        connectivity.onPrivateDnsChanged = { privateDns ->
+            val expected = device.getExpectedDnsString()
+            dnsProfileActivated.value = privateDns == expected && expected != null
+        }
     }
 
     override fun doPrivateDnsEnabled(tag: String, callback: (Result<Boolean>) -> Unit) {
-        callback(Result.success(false))
+        callback(Result.success(dnsProfileActivated.value))
     }
 
     override fun doSetSetPrivateDnsEnabled(tag: String, callback: (Result<Unit>) -> Unit) {
@@ -33,11 +52,14 @@ object PermBinding: PermOps {
     }
 
     override fun doNotificationEnabled(callback: (Result<Boolean>) -> Unit) {
+        // TODO: actual perms?
         callback(Result.success(false))
     }
 
     override fun doVpnEnabled(callback: (Result<Boolean>) -> Unit) {
-        callback(Result.success(false))
+        val enabled = vpnPerms.hasPermission()
+        vpnProfileActivated.value = enabled
+        callback(Result.success(enabled))
     }
 
 }

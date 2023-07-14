@@ -120,8 +120,6 @@ class MainApplication: LocalizationApplication(), ViewModelStoreOwner {
     private lateinit var rate: RateBinding
     private lateinit var stats: StatsBinding
 
-    private val appRepo by lazy { Repos.app }
-
     private val appUninstall = AppUninstallService()
 
     override fun getViewModelStore() = MainApplication.viewModelStore

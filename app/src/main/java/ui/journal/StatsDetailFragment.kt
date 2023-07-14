@@ -21,13 +21,12 @@ import android.widget.TextView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
 import androidx.lifecycle.Observer
-import androidx.lifecycle.ViewModelProvider
 import androidx.navigation.fragment.navArgs
+import binding.CustomBinding
 import model.HistoryEntryType
 import org.blokada.R
 import service.EnvironmentService
 import ui.advanced.decks.OptionView
-import ui.app
 import ui.utils.AndroidUtils
 
 
@@ -37,6 +36,8 @@ class StatsDetailFragment : Fragment() {
         fun newInstance() = StatsDetailFragment()
     }
 
+    private val custom by lazy { CustomBinding }
+
     private val args: StatsDetailFragmentArgs by navArgs()
 
     private lateinit var viewModel: StatsViewModel
@@ -45,9 +46,6 @@ class StatsDetailFragment : Fragment() {
         inflater: LayoutInflater, container: ViewGroup?,
         savedInstanceState: Bundle?
     ): View? {
-        activity?.let {
-            viewModel = ViewModelProvider(it.app()).get(StatsViewModel::class.java)
-        }
 
         val root =  inflater.inflate(R.layout.fragment_stats_detail, container, false)
 
@@ -105,20 +103,20 @@ class StatsDetailFragment : Fragment() {
                 primaryAction.alpha = 1.0f
 
                 when {
-                    viewModel.isDenied(this.name) -> {
+                    custom.isDenied(this.name) -> {
                         primaryAction.name = getString(R.string.activity_action_added_to_blacklist)
                         primaryAction.active = true
                         primaryAction.setOnClickListener {
                             primaryAction.alpha = 0.5f
-                            viewModel.undeny(this.name)
+                            custom.delete(this.name)
                         }
                     }
-                    viewModel.isAllowed(this.name) -> {
+                    custom.isAllowed(this.name) -> {
                         primaryAction.name = getString(R.string.activity_action_added_to_whitelist)
                         primaryAction.active = true
                         primaryAction.setOnClickListener {
                             primaryAction.alpha = 0.5f
-                            viewModel.unallow(this.name)
+                            custom.delete(this.name)
                         }
                     }
                     this.type == HistoryEntryType.passed -> {
@@ -126,7 +124,7 @@ class StatsDetailFragment : Fragment() {
                         primaryAction.active = false
                         primaryAction.setOnClickListener {
                             primaryAction.alpha = 0.5f
-                            viewModel.deny(this.name)
+                            custom.deny(this.name)
                         }
                     }
                     else -> {
@@ -134,7 +132,7 @@ class StatsDetailFragment : Fragment() {
                         primaryAction.active = false
                         primaryAction.setOnClickListener {
                             primaryAction.alpha = 0.5f
-                            viewModel.allow(this.name)
+                            custom.allow(this.name)
                         }
                     }
                 }
