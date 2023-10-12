@@ -72,7 +72,7 @@ object NotificationService {
         notificationManager.createNotificationChannel(mChannel)
     }
 
-    fun hasPermissions(): Boolean {
-        return notificationManager.areNotificationsEnabled()
-    }
+//    fun hasPermissions(): Boolean {
+//        return notificationManager.areNotificationsEnabled()
+//    }
 }

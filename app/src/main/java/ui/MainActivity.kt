@@ -42,7 +42,18 @@ import kotlinx.coroutines.launch
 import model.Tab
 import org.blokada.R
 import repository.Repos
-import service.*
+import service.AlertDialogService
+import service.ContextService
+import service.DialogService
+import service.FlutterService
+import service.LogService
+import service.NetworkMonitorPermissionService
+import service.NotificationPermissionService
+import service.NotificationService
+import service.Services
+import service.Sheet
+import service.TranslationService
+import service.VpnPermissionService
 import ui.home.ActivatedFragment
 import ui.home.FirstTimeFragment
 import ui.home.HelpFragment
@@ -416,7 +427,13 @@ class MainActivity : LocalizationActivity(), PreferenceFragmentCompat.OnPreferen
         grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        NetworkMonitorPermissionService.resultReturned(grantResults)
+        when (requestCode) {
+            NotificationPermissionService.requestCode -> {
+                NotificationPermissionService.resultReturned(grantResults)
+            } else -> {
+                NetworkMonitorPermissionService.resultReturned(grantResults)
+            }
+        }
     }
 
     override fun onPreferenceStartFragment(caller: PreferenceFragmentCompat, pref: Preference): Boolean {

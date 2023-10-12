@@ -12,12 +12,28 @@
 
 package repository
 
-import kotlinx.coroutines.*
-import kotlinx.coroutines.flow.*
+import kotlinx.coroutines.CancellableContinuation
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.filterNotNull
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
 import model.AccountType
 import model.Granted
 import org.blokada.R
-import service.*
+import service.ContextService
+import service.DialogService
+import service.NotificationPermissionService
+import service.NotificationService
+import service.SystemNavService
+import service.VpnPermissionService
 import ui.utils.AndroidUtils
 import utils.Ignored
 import utils.Logger
@@ -42,6 +58,7 @@ open class PermsRepo {
     private val systemNav = SystemNavService
     private val vpnPerms = VpnPermissionService
     private val notifications = NotificationService
+    private val notifPerms = NotificationPermissionService
 
     private val cloudRepo = Repos.cloud
 
@@ -57,6 +74,10 @@ open class PermsRepo {
         onAccountTypeUpgraded_showActivatedSheet()
         onDnsProfileActivated_update()
         onVpnPermsGranted_Proceed()
+
+        notifPerms.onPermissionGranted = {
+            GlobalScope.launch { writeNotificationPerms.emit(notifPerms.hasPermission()) }
+        }
     }
 
     private fun onForeground_recheckPerms() {
@@ -64,10 +85,10 @@ open class PermsRepo {
             enteredForegroundHot
             .combine(cloudRepo.dnsProfileActivatedHot) { _, activated -> activated }
             .collect { activated ->
-                Logger.v("Perms", "DNS profile: $activated, notifications: ${notifications.hasPermissions()}")
+                Logger.v("Perms", "DNS profile: $activated, notifications: ${notifPerms.hasPermission()}")
                 writeDnsProfilePerms.value = activated
                 writeVpnProfilePerms.value = vpnPerms.hasPermission()
-                writeNotificationPerms.value = notifications.hasPermissions()
+                writeNotificationPerms.value = notifPerms.hasPermission()
             }
         }
     }
@@ -115,10 +136,7 @@ open class PermsRepo {
     suspend fun maybeDisplayNotificationPermsDialog() {
         val granted = notificationPermsHot.first()
         if (!granted) {
-            displayNotificationPermsInstructions()
-            .collect {
-
-            }
+            displayNotificationPermsInstructions().collect {}
         }
     }
 
@@ -172,11 +190,15 @@ open class PermsRepo {
     suspend fun displayNotificationPermsInstructions(): Flow<Ignored> {
         val ctx = context.requireContext()
         return dialog.showAlert(
-            message = ctx.getString(R.string.notification_perms_denied),
+            message = ctx.getString(R.string.notification_perms_desc),
             header = ctx.getString(R.string.notification_perms_header),
-            okText = ctx.getString(R.string.dnsprofile_action_open_settings),
+            okText = ctx.getString(R.string.universal_action_continue),
             okAction = {
-                systemNav.openNotificationSettings()
+                if (android.os.Build.VERSION.SDK_INT >= 33) {
+                    notifPerms.askPermission()
+                } else {
+                    systemNav.openNotificationSettings()
+                }
             }
         )
     }
